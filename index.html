@@ -1,0 +1,163 @@
+<!doctype html>
+<html>
+<head>
+    <title>MTG Sort Helper</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
+        #grid {
+            display: grid;
+            grid-auto-flow: column;
+            grid-column-gap: 1em;
+            grid-row-gap: 0.2em;
+        }
+        .card {
+            display: flex;
+            align-items: center;
+        }
+        .name {
+            text-decoration: none;
+        }
+        .number {
+            margin-left: 0.25em;
+            font-size: smaller;
+            color: #ccc;
+        }
+        .price {
+            margin-left: 0.25em;
+            font-size: smaller;
+            background-color: gold;
+            border-radius: 1em;
+            padding: 0 0.2em;
+        }
+    </style>
+</head>
+<body>
+<form id="filter">
+    <label>
+        Set:
+        <select id="set"></select>
+    </label>
+    <label>
+        Color:
+        <select id="color">
+            <option value="">All</option>
+            <option value="W">White</option>
+            <option value="U">Blue</option>
+            <option value="B">Black</option>
+            <option value="R">Red</option>
+            <option value="G">Green</option>
+            <option value="multicolor">Multicolor</option>
+            <option value="artifact">Artifact</option>
+            <option value="land">Land</option>
+        </select>
+    </label>
+    <label>
+        Exclude Rares:
+        <input id="rares" type="checkbox" checked />
+    </label>
+    <label>
+        Columns:
+        <input id="columns" type="number" min="1" value="6" />
+    </label>
+</form>
+<hr/>
+<div id="grid"></div>
+</body>
+<script type="module">
+
+function h(tag, attributes = {}, children) {
+    const element = document.createElement(tag);
+    for (const attribute in attributes) {
+        if (attributes.hasOwnProperty(attribute)) {
+            element.setAttribute(attribute, attributes[attribute]);
+        }
+    }
+    children.forEach((child) => {
+        element.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+    });
+    return element
+}
+
+function fetchAll(url) {
+    return fetch(url).then((resp) => resp.json()).then((json) => {
+        if (json.has_more) {
+            return fetchAll(json.next_page).then((more) => json.data.concat(more));
+        }
+        return json.data;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    let sets = null;
+    let cards = [];
+    const output = document.getElementById('grid');
+    const setInput = document.getElementById('set');
+    const colorInput = document.getElementById('color');
+    const raresInput = document.getElementById('rares');
+    const columnsInput = document.getElementById('columns');
+
+    loading();
+    fetchAll('https://api.scryfall.com/sets').then((result) => {
+        sets = result.reverse();
+        sets.forEach((set) => {
+            const option = h('option', { value: set.code }, [set.name]);
+            setInput.appendChild(option);
+        });
+        redraw();
+    });
+
+    setInput.addEventListener('change', (event) => {
+        const search = sets.find((s) => s.code === event.currentTarget.value).search_uri;
+        loading();
+        fetchAll(search).then((result) => {
+            cards = result;
+            redraw();
+        });
+    });
+    colorInput.addEventListener('change', redraw);
+    raresInput.addEventListener('change', redraw);
+    columnsInput.addEventListener('change', redraw);
+
+    function loading() {
+        while (output.children.length) {
+            output.removeChild(output.firstChild);
+        }
+        output.textContent = 'Loading...'
+    }
+
+    function redraw() {
+        while (output.hasChildNodes()) {
+            output.removeChild(output.firstChild);
+        }
+        let selected = cards;
+        if (colorInput.value.length === 1) {
+            selected = selected.filter((c) => c.colors?.length === 1 && c.colors[0] === colorInput.value);
+        } else if (colorInput.value === 'multicolor') {
+            selected = selected.filter((c) => c.colors?.length > 1);
+        } else if (colorInput.value === 'artifact') {
+            selected = selected.filter((c) => /Artifact/.test(c.type_line));
+        } else if (colorInput.value === 'land') {
+            selected = selected.filter((c) => /Land/.test(c.type_line));
+        }
+        if (raresInput.checked) {
+            selected = selected.filter((c) => c.rarity !== "rare" && c.rarity !== "mythic");
+        }
+        const n = Math.ceil(selected.length / columnsInput.value);
+        output.style.gridTemplateColumns = `repeat(${columnsInput.value},1fr)`;
+        output.style.gridTemplateRows = `repeat(${n},auto)`;
+        for (const c of selected) {
+            const children = [h('a', { class: 'name', href: c.scryfall_uri, target: '_blank' }, [c.name])];
+            if (c.collector_number) {
+                children.push(h('span', { class: 'number' }, [`${c.collector_number}`]));
+            }
+            if (c.prices?.usd > 1) {
+                children.push(h('span', { class: 'price' }, [`$${c.prices.usd}`]));
+            }
+            output.appendChild(h('div', { class: 'card' }, children));
+        }
+    }
+});
+</script>
+</html>
