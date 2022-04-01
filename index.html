@@ -30,9 +30,21 @@
         .price {
             margin-left: 0.25em;
             font-size: smaller;
-            background-color: gold;
             border-radius: 1em;
             padding: 0 0.2em;
+        }
+        .price.rare {
+            background-color: gold;
+        }
+        .price.common {
+            color: white;
+            background-color: black;
+        }
+        .price.uncommon {
+            background-color: silver;
+        }
+        .price.mythic {
+            background-color: orchid;
         }
     </style>
 </head>
@@ -162,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     children.push(h('span', { class: 'number' }, [`${c.collector_number}`]));
                 }
                 if (c.prices?.usd > 1) {
-                    children.push(h('span', { class: 'price' }, [`$${c.prices.usd}`]));
+                    children.push(h('span', { class: `price ${c.rarity}` }, [`$${c.prices.usd}`]));
                 }
                 grid.appendChild(h('div', { class: 'card' }, children));
             }
