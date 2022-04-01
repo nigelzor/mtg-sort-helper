@@ -6,7 +6,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
         }
-        #grid {
+        .grid {
             display: grid;
             grid-auto-flow: column;
             grid-column-gap: 1em;
@@ -40,20 +40,6 @@
         <select id="set"></select>
     </label>
     <label>
-        Color:
-        <select id="color">
-            <option value="">All</option>
-            <option value="W">White</option>
-            <option value="U">Blue</option>
-            <option value="B">Black</option>
-            <option value="R">Red</option>
-            <option value="G">Green</option>
-            <option value="multicolor">Multicolor</option>
-            <option value="artifact">Artifact</option>
-            <option value="land">Land</option>
-        </select>
-    </label>
-    <label>
         Exclude Rares:
         <input id="rares" type="checkbox" checked />
     </label>
@@ -63,7 +49,7 @@
     </label>
 </form>
 <hr/>
-<div id="grid"></div>
+<div id="output"></div>
 </body>
 <script type="module">
 
@@ -74,7 +60,7 @@ function h(tag, attributes = {}, children) {
             element.setAttribute(attribute, attributes[attribute]);
         }
     }
-    children.forEach((child) => {
+    children?.forEach((child) => {
         element.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
     });
     return element
@@ -89,14 +75,41 @@ function fetchAll(url) {
     });
 }
 
+function chunkify(cards) {
+    function color(card) {
+        if (card.colors?.length > 1) {
+            return 'multi';
+        } else if (card.colors?.length === 1) {
+            return card.colors[0];
+        } else if (/Land/.test(card.type_line)) {
+            return 'land';
+        } else if (/Artifact/.test(card.type_line)) {
+            return 'artifact';
+        }
+        return 'unknown';
+    }
+
+    const chunks = [];
+    let lastCard;
+    for (const card of cards) {
+        if (lastCard == null || color(card) !== color(lastCard)) {
+            chunks.push([card]);
+        } else {
+            chunks[chunks.length - 1].push(card);
+        }
+        lastCard = card;
+    }
+    return chunks;
+}
+
 document.addEventListener('DOMContentLoaded', function () {
-    let sets = null;
-    let cards = [];
-    const output = document.getElementById('grid');
+    const output = document.getElementById('output');
     const setInput = document.getElementById('set');
-    const colorInput = document.getElementById('color');
     const raresInput = document.getElementById('rares');
     const columnsInput = document.getElementById('columns');
+
+    let sets = null;
+    let cards = [];
 
     loading();
     fetchAll('https://api.scryfall.com/sets').then((result) => {
@@ -112,16 +125,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const search = sets.find((s) => s.code === event.currentTarget.value).search_uri;
         loading();
         fetchAll(search).then((result) => {
+            console.log(result.map((c) => c.name));
             cards = result;
             redraw();
         });
     });
-    colorInput.addEventListener('change', redraw);
     raresInput.addEventListener('change', redraw);
     columnsInput.addEventListener('change', redraw);
 
     function loading() {
-        while (output.children.length) {
+        while (output.hasChildNodes()) {
             output.removeChild(output.firstChild);
         }
         output.textContent = 'Loading...'
@@ -132,30 +145,26 @@ document.addEventListener('DOMContentLoaded', function () {
             output.removeChild(output.firstChild);
         }
         let selected = cards;
-        if (colorInput.value.length === 1) {
-            selected = selected.filter((c) => c.colors?.length === 1 && c.colors[0] === colorInput.value);
-        } else if (colorInput.value === 'multicolor') {
-            selected = selected.filter((c) => c.colors?.length > 1);
-        } else if (colorInput.value === 'artifact') {
-            selected = selected.filter((c) => /Artifact/.test(c.type_line));
-        } else if (colorInput.value === 'land') {
-            selected = selected.filter((c) => /Land/.test(c.type_line));
-        }
         if (raresInput.checked) {
             selected = selected.filter((c) => c.rarity !== "rare" && c.rarity !== "mythic");
         }
-        const n = Math.ceil(selected.length / columnsInput.value);
-        output.style.gridTemplateColumns = `repeat(${columnsInput.value},1fr)`;
-        output.style.gridTemplateRows = `repeat(${n},auto)`;
-        for (const c of selected) {
-            const children = [h('a', { class: 'name', href: c.scryfall_uri, target: '_blank' }, [c.name])];
-            if (c.collector_number) {
-                children.push(h('span', { class: 'number' }, [`${c.collector_number}`]));
+        for (const chunk of chunkify(selected)) {
+            const grid = h('div', { class: 'grid' }, []);
+            const n = Math.ceil(chunk.length / columnsInput.value);
+            grid.style.gridTemplateColumns = `repeat(${columnsInput.value},1fr)`;
+            grid.style.gridTemplateRows = `repeat(${n},auto)`;
+            for (const c of chunk) {
+                const children = [h('a', { class: 'name', href: c.scryfall_uri, target: '_blank' }, [c.name])];
+                if (c.collector_number) {
+                    children.push(h('span', { class: 'number' }, [`${c.collector_number}`]));
+                }
+                if (c.prices?.usd > 1) {
+                    children.push(h('span', { class: 'price' }, [`$${c.prices.usd}`]));
+                }
+                grid.appendChild(h('div', { class: 'card' }, children));
             }
-            if (c.prices?.usd > 1) {
-                children.push(h('span', { class: 'price' }, [`$${c.prices.usd}`]));
-            }
-            output.appendChild(h('div', { class: 'card' }, children));
+            output.appendChild(grid);
+            output.appendChild(h('hr'));
         }
     }
 });
