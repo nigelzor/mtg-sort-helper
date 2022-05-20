@@ -124,10 +124,11 @@ function fetchAll(url) {
 
 function chunkify(cards) {
     function color(card) {
-        if (card.colors?.length > 1) {
+        const colors = card.colors || card.card_faces?.[0].colors;
+        if (colors?.length > 1) {
             return 'multi';
-        } else if (card.colors?.length === 1) {
-            return card.colors[0];
+        } else if (colors?.length === 1) {
+            return colors[0];
         } else if (/Land/.test(card.type_line)) {
             return 'land';
         } else if (/Artifact/.test(card.type_line)) {
