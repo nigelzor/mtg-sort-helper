@@ -11,6 +11,8 @@
             grid-auto-flow: column;
             grid-column-gap: 1em;
             grid-row-gap: 0.2em;
+        }
+        .grid.cards {
             border-left: 0.5em solid transparent;
             padding-left: 0.5em;
         }
@@ -79,7 +81,7 @@
     <label>
         Set:
         <select id="set">
-            <option selected>(none selected)</option>
+            <option selected value="">(none selected)</option>
         </select>
     </label>
     <label>
@@ -152,6 +154,13 @@ function chunkify(cards) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    const hash = () => new URLSearchParams(`?${window.location.hash.substring(1)}`);
+    const newHash = (k, v) => {
+        const h = hash();
+        h.set(k, v);
+        return '#' + h.toString();
+    };
+
     const output = document.getElementById('output');
     const setInput = document.getElementById('set');
     const raresInput = document.getElementById('rares');
@@ -163,24 +172,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
     loading();
     fetchAll('https://api.scryfall.com/sets').then((result) => {
+        const selectedSet = hash().get('set');
         sets = result.reverse();
         sets.forEach((set) => {
             const option = h('option', { value: set.code }, [set.name]);
+            if (set.code === selectedSet) {
+                option.selected = true;
+            }
             setInput.appendChild(option);
         });
         redraw();
     });
 
+    window.onhashchange = redraw;
+
     setInput.addEventListener('change', (event) => {
-        if (setInput.firstElementChild.textContent === '(none selected)') {
-            setInput.removeChild(setInput.firstElementChild);
-        }
-        const search = sets.find((s) => s.code === event.currentTarget.value).search_uri;
-        loading();
-        fetchAll(search).then((result) => {
-            cards = result;
-            redraw();
-        });
+        window.location.hash = newHash('set', event.currentTarget.value);
     });
     raresInput.addEventListener('change', redraw);
     columnsInput.addEventListener('change', redraw);
@@ -191,23 +198,25 @@ document.addEventListener('DOMContentLoaded', function () {
     focusInput.addEventListener('change', handleFocusChange);
     handleFocusChange();
 
-    function loading() {
+    function clear() {
         while (output.hasChildNodes()) {
             output.removeChild(output.firstChild);
         }
+    }
+
+    function loading() {
+        clear();
         output.textContent = 'Loading...'
     }
 
-    function redraw() {
-        while (output.hasChildNodes()) {
-            output.removeChild(output.firstChild);
-        }
+    function drawCards() {
+        clear();
         let selected = cards;
         if (raresInput.checked) {
             selected = selected.filter((c) => c.rarity !== "rare" && c.rarity !== "mythic");
         }
         for (const chunk of chunkify(selected)) {
-            const grid = h('div', { class: `grid ${chunk.color}` }, []);
+            const grid = h('div', { class: `grid cards ${chunk.color}` }, []);
             const n = Math.ceil(chunk.cards.length / columnsInput.value);
             grid.style.gridTemplateColumns = `repeat(${columnsInput.value},1fr)`;
             grid.style.gridTemplateRows = `repeat(${n},auto)`;
@@ -223,6 +232,41 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             output.appendChild(grid);
             output.appendChild(h('hr'));
+        }
+    }
+
+    function drawSets() {
+        clear();
+        const grid = h('div', { class: 'grid sets' }, []);
+        const n = Math.ceil(sets.length / columnsInput.value);
+        grid.style.gridTemplateColumns = `repeat(${columnsInput.value},1fr)`;
+        grid.style.gridTemplateRows = `repeat(${n},auto)`;
+        for (const set of sets) {
+            const children = [h('a', { class: 'name', href: newHash('set', set.code) }, [set.name])];
+            grid.appendChild(h('div', { class: 'card' }, children));
+        }
+        output.appendChild(grid);
+        output.appendChild(h('hr'));}
+
+    function redraw() {
+        if (!sets) {
+            return;
+        }
+        const selectedSet = hash().get('set');
+        if (selectedSet) {
+            setInput.value = selectedSet;
+            if (!(cards[0] && cards[0].set === selectedSet)) {
+                const search = sets.find((s) => s.code === selectedSet).search_uri;
+                loading();
+                fetchAll(search).then((result) => {
+                    cards = result;
+                    redraw();
+                });
+            } else {
+                drawCards();
+            }
+        } else {
+            drawSets();
         }
     }
 });
