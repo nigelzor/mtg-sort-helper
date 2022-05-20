@@ -1,46 +1,75 @@
 <!doctype html>
 <html lang="en">
 <head>
+    <meta charset="utf-8" />
     <title>MTG Sort Helper</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
         }
-        .grid {
+        .set-grid {
+            display: grid;
+            grid-column-gap: 0.5em;
+            grid-row-gap: 0.2em;
+            grid-template-columns: 1em auto auto;
+            justify-content: center;
+        }
+        .set-grid .year {
+            grid-column: 1 / span 3;
+            font-size: smaller;
+            font-style: italic;
+            justify-self: center;
+        }
+        .set-grid .set {
+            display: contents;
+        }
+        .set-grid img {
+            grid-column: 1;
+            max-width: 1em;
+            max-height: 1em;
+            align-self: center;
+            justify-self: center;
+        }
+        .set-grid a {
+            grid-column: 2;
+            justify-self: left;
+        }
+        .set-grid a.child {
+            grid-column: 3;
+        }
+        .card-grid {
             display: grid;
             grid-auto-flow: column;
             grid-column-gap: 1em;
             grid-row-gap: 0.2em;
-        }
-        .grid.cards {
             border-left: 0.5em solid transparent;
             padding-left: 0.5em;
         }
-        .grid.W {
+        .card-grid.W {
             border-color: #f8e7b9;
         }
-        .grid.U {
+        .card-grid.U {
             border-color: #0e68ab;
         }
-        .grid.B {
+        .card-grid.B {
             border-color: #150b00;
         }
-        .grid.R {
+        .card-grid.R {
             border-color: rgb(135,6,36);
         }
-        .grid.G {
+        .card-grid.G {
             border-color: #00733e;
         }
-        .grid.artifact {
+        .card-grid.artifact {
             border-color: #7f5845;
         }
-        .grid.land {
+        .card-grid.land {
             border-color: #91837a;
         }
-        .grid.multi {
+        .card-grid.multi {
             border-color: rgb(213,175,70);
         }
-        #output.focus:hover > .grid:not(:hover) {
+        #output.focus:hover > .card-grid:not(:hover) {
             opacity: 30%;
         }
         .card {
@@ -216,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function () {
             selected = selected.filter((c) => c.rarity !== "rare" && c.rarity !== "mythic");
         }
         for (const chunk of chunkify(selected)) {
-            const grid = h('div', { class: `grid cards ${chunk.color}` }, []);
+            const grid = h('div', { class: `card-grid ${chunk.color}` }, []);
             const n = Math.ceil(chunk.cards.length / columnsInput.value);
             grid.style.gridTemplateColumns = `repeat(${columnsInput.value},1fr)`;
             grid.style.gridTemplateRows = `repeat(${n},auto)`;
@@ -237,13 +266,47 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function drawSets() {
         clear();
-        const grid = h('div', { class: 'grid sets' }, []);
-        const n = Math.ceil(sets.length / columnsInput.value);
-        grid.style.gridTemplateColumns = `repeat(${columnsInput.value},1fr)`;
-        grid.style.gridTemplateRows = `repeat(${n},auto)`;
+        const grid = h('div', { class: 'set-grid' }, []);
+        let lasty;
+        const children = sets.filter((s) => s.parent_set_code);
+        function shortname(parent, child) {
+            if (child.startsWith(parent.name) || child.replace(':', '').startsWith(parent.name)) {
+                return child.substring(parent.name.length + 1);
+            }
+            const names = parent.name.split(': ');
+            if (names.length > 1) {
+                for (const name of names) {
+                    if (child.startsWith(name)) {
+                        return child.substring(name.length);
+                    }
+                }
+            }
+            if (child.startsWith(parent.code) || child.startsWith(parent.code.toUpperCase())) {
+                return child.substring(parent.code.length);
+            }
+            return child;
+        }
+
         for (const set of sets) {
-            const children = [h('a', { class: 'name', href: newHash('set', set.code) }, [set.name])];
-            grid.appendChild(h('div', { class: 'card' }, children));
+            if (set.parent_set_code) {
+                continue;
+            }
+            const year = set.released_at.substring(0, 4);
+            if (lasty == null || lasty !== year) {
+                grid.appendChild(h('div', { class: 'year' }, [`– ${year} –`]));
+            }
+            const row = [];
+            if (set.icon_svg_uri) {
+                row.push(h('img', { src: set.icon_svg_uri }));
+            }
+            row.push(h('a', { href: newHash('set', set.code), class: set.set_type }, [set.name]));
+            for (const child of children) {
+                if (child.parent_set_code === set.code) {
+                    row.push(h('a', { href: newHash('set', child.code), class: 'child' }, [shortname(set, child.name)]))
+                }
+            }
+            grid.appendChild(h('div', { class: 'set' }, row));
+            lasty = year;
         }
         output.appendChild(grid);
         output.appendChild(h('hr'));}
