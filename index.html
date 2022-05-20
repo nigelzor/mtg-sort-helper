@@ -11,8 +11,46 @@
             grid-auto-flow: column;
             grid-column-gap: 1em;
             grid-row-gap: 0.2em;
+            border-left: 0.5em solid transparent;
+            padding-left: 0.5em;
         }
-        #output:hover > .grid:not(:hover) {
+        .grid.W {
+            border-color: #f8e7b9;
+            /*border-color: #f9faf4;*/
+            /*border-color: rgb(177,163,147);*/
+        }
+        .grid.U {
+            border-color: #b3ceea;
+            border-color: #0e68ab;
+            /*border-color: rgb(68,125,154);*/
+        }
+        .grid.B {
+            border-color: #a69f9d;
+            border-color: #150b00;
+            /*border-color: rgb(36,38,32);*/
+        }
+        .grid.R {
+            border-color: #eb9f82;
+            border-color: #d3202a;
+            border-color: rgb(135,6,36);
+        }
+        .grid.G {
+            border-color: #c4d3ca;
+            border-color: #00733e;
+            /*border-color: rgb(69,95,77);*/
+        }
+        .grid.artifact {
+            border-color: #7f5845;
+            /*border-color: rgb(82,61,47);*/
+        }
+        .grid.land {
+            border-color: #91837a;
+        }
+        .grid.multi {
+            border-color: rgb(143,128,67);
+            border-color: rgb(213,175,70);
+        }
+        #output.focus:hover > .grid:not(:hover) {
             opacity: 30%;
         }
         .card {
@@ -52,7 +90,9 @@
 <form id="filter">
     <label>
         Set:
-        <select id="set"></select>
+        <select id="set">
+            <option selected>(none selected)</option>
+        </select>
     </label>
     <label>
         Exclude Rares:
@@ -61,6 +101,10 @@
     <label>
         Columns:
         <input id="columns" type="number" min="1" value="6" />
+    </label>
+    <label>
+        Focus:
+        <input id="focus" type="checkbox" />
     </label>
 </form>
 <hr/>
@@ -105,14 +149,15 @@ function chunkify(cards) {
     }
 
     const chunks = [];
-    let lastCard;
+    let lc;
     for (const card of cards) {
-        if (lastCard == null || color(card) !== color(lastCard)) {
-            chunks.push([card]);
+        const c = color(card);
+        if (lc == null || lc !== c) {
+            chunks.push({ color: c, cards: [card] });
         } else {
-            chunks[chunks.length - 1].push(card);
+            chunks[chunks.length - 1].cards.push(card);
         }
-        lastCard = card;
+        lc = c;
     }
     return chunks;
 }
@@ -122,6 +167,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const setInput = document.getElementById('set');
     const raresInput = document.getElementById('rares');
     const columnsInput = document.getElementById('columns');
+    const focusInput = document.getElementById('focus');
 
     let sets = null;
     let cards = [];
@@ -137,16 +183,24 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     setInput.addEventListener('change', (event) => {
+        if (setInput.firstElementChild.textContent === '(none selected)') {
+            setInput.removeChild(setInput.firstElementChild);
+        }
         const search = sets.find((s) => s.code === event.currentTarget.value).search_uri;
         loading();
         fetchAll(search).then((result) => {
-            console.log(result.map((c) => c.name));
             cards = result;
             redraw();
         });
     });
     raresInput.addEventListener('change', redraw);
     columnsInput.addEventListener('change', redraw);
+
+    function handleFocusChange() {
+        output.classList[focusInput.checked ? 'add' : 'remove']('focus');
+    }
+    focusInput.addEventListener('change', handleFocusChange);
+    handleFocusChange();
 
     function loading() {
         while (output.hasChildNodes()) {
@@ -164,11 +218,11 @@ document.addEventListener('DOMContentLoaded', function () {
             selected = selected.filter((c) => c.rarity !== "rare" && c.rarity !== "mythic");
         }
         for (const chunk of chunkify(selected)) {
-            const grid = h('div', { class: 'grid' }, []);
-            const n = Math.ceil(chunk.length / columnsInput.value);
+            const grid = h('div', { class: `grid ${chunk.color}` }, []);
+            const n = Math.ceil(chunk.cards.length / columnsInput.value);
             grid.style.gridTemplateColumns = `repeat(${columnsInput.value},1fr)`;
             grid.style.gridTemplateRows = `repeat(${n},auto)`;
-            for (const c of chunk) {
+            for (const c of chunk.cards) {
                 const children = [h('a', { class: 'name', href: c.scryfall_uri, target: '_blank' }, [c.name])];
                 if (c.collector_number) {
                     children.push(h('span', { class: 'number' }, [`${c.collector_number}`]));
