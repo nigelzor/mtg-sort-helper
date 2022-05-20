@@ -290,19 +290,29 @@ document.addEventListener('DOMContentLoaded', function () {
         let lasty;
         const children = sets.filter((s) => s.parent_set_code);
         function shortname(parent, child) {
-            if (child.startsWith(parent.name) || child.replace(':', '').startsWith(parent.name)) {
+            if (child.startsWith(parent.name)) {
                 return child.substring(parent.name.length + 1);
             }
-            const names = parent.name.split(': ');
-            if (names.length > 1) {
-                for (const name of names) {
-                    if (child.startsWith(name)) {
-                        return child.substring(name.length);
-                    }
+            const names = [];
+            if (parent.code === 'ptk') {
+                names.push('Portal: Three Kingdoms');
+            }
+            if (parent.code === 'snc') {
+                names.push('New Capenna');
+            }
+            if (parent.code === 'afr') {
+                names.push('Forgotten Realms');
+            }
+            if (parent.name.includes(': ')) {
+                names.push(...parent.name.split(': '));
+            }
+            for (const name of names) {
+                if (child.startsWith(name)) {
+                    return child.substring(name.length + 1);
                 }
             }
             if (child.startsWith(parent.code) || child.startsWith(parent.code.toUpperCase())) {
-                return child.substring(parent.code.length);
+                return child.substring(parent.code.length + 1);
             }
             return child;
         }
