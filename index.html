@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>MTG Sort Helper</title>
     <style>
         body {
@@ -103,26 +104,43 @@
         .price.mythic {
             background-color: orchid;
         }
+        form label {
+            display: inline-flex;
+            max-width: 100%;
+        }
+        form label span + input,
+        form label span + select {
+            margin-left: 0.5em;
+        }
+        form label select {
+            flex: 0 1 auto;
+            min-width: 0;
+        }
+        @media screen and (max-width: 600px) {
+            .no-mobile {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
 <form id="filter">
     <label>
-        Set:
+        <span>Set:</span>
         <select id="set">
             <option selected value="">(none selected)</option>
         </select>
     </label>
-    <label>
-        Exclude Rares:
-        <input id="rares" type="checkbox" checked />
-    </label>
-    <label>
-        Columns:
+    <label class="no-mobile">
+        <span>Columns:</span>
         <input id="columns" type="number" min="1" value="6" />
     </label>
     <label>
-        Focus:
+        <span>Exclude Rares:</span>
+        <input id="rares" type="checkbox" checked />
+    </label>
+    <label class="no-mobile">
+        <span>Focus:</span>
         <input id="focus" type="checkbox" />
     </label>
 </form>
@@ -244,10 +262,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (raresInput.checked) {
             selected = selected.filter((c) => c.rarity !== "rare" && c.rarity !== "mythic");
         }
+        // small screens only get one column
+        const columns = window.matchMedia('screen and (max-width: 600px)').matches ? 1 : columnsInput.value;
         for (const chunk of chunkify(selected)) {
             const grid = h('div', { class: `card-grid ${chunk.color}` }, []);
-            const n = Math.ceil(chunk.cards.length / columnsInput.value);
-            grid.style.gridTemplateColumns = `repeat(${columnsInput.value},1fr)`;
+            const n = Math.ceil(chunk.cards.length / columns);
+            grid.style.gridTemplateColumns = `repeat(${columns},1fr)`;
             grid.style.gridTemplateRows = `repeat(${n},auto)`;
             for (const c of chunk.cards) {
                 const children = [h('a', { class: 'name', href: c.scryfall_uri, target: '_blank' }, [c.name])];
