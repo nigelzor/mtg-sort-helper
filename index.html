@@ -39,10 +39,6 @@
             grid-column: 3;
         }
         .card-grid {
-            display: grid;
-            grid-auto-flow: column;
-            grid-column-gap: 1em;
-            grid-row-gap: 0.2em;
             border-left: 0.5em solid transparent;
             padding-left: 0.5em;
         }
@@ -74,15 +70,25 @@
             opacity: 30%;
         }
         .card {
+            break-inside: avoid;
             display: flex;
             align-items: center;
         }
+        .card + .card {
+            margin-top: 0.2em;
+        }
         .name {
             text-decoration: none;
+            break-inside: avoid;
+        }
+        .space {
+            flex-grow: 1;
         }
         .number {
-            margin-left: 0.25em;
+            margin-right: 0.25em;
+            min-width: 1.8em;
             font-size: smaller;
+            text-align: center;
             color: #ccc;
         }
         .price {
@@ -266,15 +272,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const columns = window.matchMedia('screen and (max-width: 600px)').matches ? 1 : columnsInput.value;
         for (const chunk of chunkify(selected)) {
             const grid = h('div', { class: `card-grid ${chunk.color}` }, []);
-            const n = Math.ceil(chunk.cards.length / columns);
-            grid.style.gridTemplateColumns = `repeat(${columns},1fr)`;
-            grid.style.gridTemplateRows = `repeat(${n},auto)`;
+            grid.style.columnCount = `${columns}`;
             for (const c of chunk.cards) {
-                const children = [h('a', { class: 'name', href: c.scryfall_uri, target: '_blank' }, [c.name])];
+                const children = [];
                 if (c.collector_number) {
                     children.push(h('span', { class: 'number' }, [`${c.collector_number}`]));
                 }
+                children.push(h('a', { class: 'name', href: c.scryfall_uri, target: '_blank' }, [c.name]));
                 if (c.prices?.usd > 1) {
+                    children.push(h('div', { class: 'space' }));
                     children.push(h('span', { class: `price ${c.rarity}` }, [`$${c.prices.usd}`]));
                 }
                 grid.appendChild(h('div', { class: 'card' }, children));
