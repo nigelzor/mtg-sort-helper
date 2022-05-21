@@ -297,9 +297,16 @@ document.addEventListener('DOMContentLoaded', function () {
         output.textContent = 'Loading...'
     }
 
+    function compare(a, b) {
+        if (a > b) return 1;
+        if (b > a) return -1;
+        return 0;
+    }
+
     function drawCards() {
         clear();
         let selected = cards;
+        selected.sort((a, b) => -compare(a.booster, b.booster))
         if (raresInput.checked) {
             selected = selected.filter((c) => c.rarity !== "rare" && c.rarity !== "mythic");
         }
