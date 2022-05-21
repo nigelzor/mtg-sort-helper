@@ -44,6 +44,17 @@
         .set-grid a.child {
             grid-column: 3;
         }
+        .card-grid-wrapper {
+            text-align: center;
+        }
+        .card-grid-wrapper > div {
+            text-align: initial;
+            display: inline-block;
+            max-width: 100%;
+        }
+        #output.focus .card-grid-wrapper > div:hover .card-grid:not(:hover) {
+            opacity: 30%;
+        }
         .card-grid {
             border-left: 0.5em solid transparent;
             padding-left: 0.5em;
@@ -71,9 +82,6 @@
         }
         .card-grid.multi {
             border-color: rgb(213,175,70);
-        }
-        #output.focus:hover > .card-grid:not(:hover) {
-            opacity: 30%;
         }
         .card {
             break-inside: avoid;
@@ -131,6 +139,14 @@
             .no-mobile {
                 display: none;
             }
+            .card-grid-wrapper > div {
+                display: initial;
+            }
+        }
+        @media (hover: none) {
+            .needs-mouse {
+                display: none;
+            }
         }
         @media print {
             #filter {
@@ -159,7 +175,7 @@
         <span>Exclude Bulk:</span>
         <input id="bulk" type="checkbox" />
     </label>
-    <label class="no-mobile">
+    <label class="needs-mouse">
         <span>Focus:</span>
         <input id="focus" type="checkbox" />
     </label>
@@ -289,6 +305,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // small screens only get one column
         const columns = window.matchMedia('screen and (max-width: 600px)').matches ? 1 : columnsInput.value;
+        let first = true;
+        const wrapper = h('div');
         for (const chunk of chunkify(selected)) {
             const grid = h('div', { class: `card-grid ${chunk.color}` }, []);
             grid.style.columnCount = `${columns}`;
@@ -303,9 +321,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 grid.appendChild(h('div', { class: 'card' }, children));
             }
-            output.appendChild(grid);
-            output.appendChild(h('hr'));
+            if (!first) {
+                wrapper.appendChild(h('hr'));
+            }
+            wrapper.appendChild(grid);
+            first = false;
         }
+        output.appendChild(h('div', { class: 'card-grid-wrapper' }, [wrapper]));
     }
 
     function drawSets() {
