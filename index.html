@@ -303,11 +303,17 @@ document.addEventListener('DOMContentLoaded', function () {
         if (bulkInput.checked) {
             selected = selected.filter((c) => c.prices?.usd > 1);
         }
-        // small screens only get one column
-        const columns = window.matchMedia('screen and (max-width: 600px)').matches ? 1 : columnsInput.value;
+        const chunked = chunkify(selected);
         let first = true;
         const wrapper = h('div');
-        for (const chunk of chunkify(selected)) {
+        let columns = columnsInput.value;
+        if (window.matchMedia('screen and (max-width: 600px)').matches) {
+            columns = 1; // small screens only get one column
+        } else {
+            // don't show more columns than there are cards
+            columns = Math.min(columns, Math.max(...chunked.map((c) => c.cards.length)));
+        }
+        for (const chunk of chunked) {
             const grid = h('div', { class: `card-grid ${chunk.color}` }, []);
             grid.style.columnCount = `${columns}`;
             for (const c of chunk.cards) {
