@@ -135,6 +135,9 @@
             flex: 0 1 auto;
             min-width: 0;
         }
+        #columns {
+            width: 3em;
+        }
         @media screen and (max-width: 600px) {
             .no-mobile {
                 display: none;
@@ -165,7 +168,7 @@
     </label>
     <label class="no-mobile">
         <span>Columns:</span>
-        <input id="columns" type="number" min="1" value="6" size="3" />
+        <input id="columns" type="number" min="1" value="6" />
     </label>
     <label>
         <span>Exclude Rares:</span>
