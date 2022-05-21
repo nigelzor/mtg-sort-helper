@@ -155,6 +155,10 @@
         <span>Exclude Rares:</span>
         <input id="rares" type="checkbox" checked />
     </label>
+    <label>
+        <span>Exclude Bulk:</span>
+        <input id="bulk" type="checkbox" />
+    </label>
     <label class="no-mobile">
         <span>Focus:</span>
         <input id="focus" type="checkbox" />
@@ -227,6 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const output = document.getElementById('output');
     const setInput = document.getElementById('set');
     const raresInput = document.getElementById('rares');
+    const bulkInput = document.getElementById('bulk');
     const columnsInput = document.getElementById('columns');
     const focusInput = document.getElementById('focus');
 
@@ -253,6 +258,7 @@ document.addEventListener('DOMContentLoaded', function () {
         window.location.hash = newHash('set', event.currentTarget.value);
     });
     raresInput.addEventListener('change', redraw);
+    bulkInput.addEventListener('change', redraw);
     columnsInput.addEventListener('change', redraw);
 
     function handleFocusChange() {
@@ -277,6 +283,9 @@ document.addEventListener('DOMContentLoaded', function () {
         let selected = cards;
         if (raresInput.checked) {
             selected = selected.filter((c) => c.rarity !== "rare" && c.rarity !== "mythic");
+        }
+        if (bulkInput.checked) {
+            selected = selected.filter((c) => c.prices?.usd > 1);
         }
         // small screens only get one column
         const columns = window.matchMedia('screen and (max-width: 600px)').matches ? 1 : columnsInput.value;
