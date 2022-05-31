@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loading();
     fetchAll('https://api.scryfall.com/sets').then((result) => {
         const selectedSet = hash().get('set');
-        sets = result.reverse();
+        sets = result.filter((s) => !s.digital).reverse();
         sets.forEach((set) => {
             const option = h('option', { value: set.code }, [set.name]);
             if (set.code === selectedSet) {
