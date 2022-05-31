@@ -303,6 +303,13 @@ document.addEventListener('DOMContentLoaded', function () {
         return 0;
     }
 
+    function price(c) {
+        if (c.finishes.includes('foil') && !c.finishes.includes('regular')) {
+            return c.prices?.usd_foil;
+        }
+        return c.prices?.usd;
+    }
+
     function drawCards() {
         clear();
         let selected = cards;
@@ -311,7 +318,7 @@ document.addEventListener('DOMContentLoaded', function () {
             selected = selected.filter((c) => c.rarity !== "rare" && c.rarity !== "mythic");
         }
         if (bulkInput.checked) {
-            selected = selected.filter((c) => c.prices?.usd > 1);
+            selected = selected.filter((c) => price(c) > 1);
         }
         const chunked = chunkify(selected);
         let first = true;
@@ -332,8 +339,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     children.push(h('span', { class: 'number' }, [`${c.collector_number}`]));
                 }
                 children.push(h('div', { class: 'name' }, [h('a', { class: 'name', href: c.scryfall_uri, target: '_blank' }, [c.name])]));
-                if (c.prices?.usd > 1) {
-                    children.push(h('span', { class: `price ${c.rarity}` }, [`$${c.prices.usd}`]));
+                if (price(c) > 1) {
+                    children.push(h('span', { class: `price ${c.rarity}` }, [`$${price(c)}`]));
                 }
                 grid.appendChild(h('div', { class: 'card' }, children));
             }
