@@ -17,7 +17,6 @@
         .set-grid {
             display: grid;
             grid-column-gap: 0.5em;
-            grid-row-gap: 0.2em;
             grid-template-columns: 1em auto auto;
             justify-content: center;
         }
@@ -56,6 +55,10 @@
             opacity: 30%;
         }
         .card-grid {
+            display: grid;
+            grid-auto-flow: column;
+            grid-column-gap: 0.8em;
+            grid-row-gap: 0.2em;
             border-left: 0.5em solid transparent;
             padding-left: 0.5em;
         }
@@ -84,7 +87,6 @@
             border-color: rgb(213,175,70);
         }
         .card {
-            break-inside: avoid;
             display: flex;
             align-items: center;
         }
@@ -93,7 +95,6 @@
         }
         .name {
             flex: 1 1 auto;
-            break-inside: avoid;
         }
         .number {
             flex-shrink: 0;
@@ -332,7 +333,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         for (const chunk of chunked) {
             const grid = h('div', { class: `card-grid ${chunk.color}` }, []);
-            grid.style.columnCount = `${columns}`;
+            grid.style.gridTemplateColumns = `repeat(${columns},1fr)`;
+            let col = h('div');
+            const n = Math.ceil(chunk.cards.length / columns);
             for (const c of chunk.cards) {
                 const children = [];
                 if (c.collector_number) {
@@ -342,7 +345,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (price(c) > 1) {
                     children.push(h('span', { class: `price ${c.rarity}` }, [`$${price(c)}`]));
                 }
-                grid.appendChild(h('div', { class: 'card' }, children));
+                col.appendChild(h('div', { class: 'card' }, children));
+                if (col.children.length >= n) {
+                    grid.appendChild(col);
+                    col = h('div');
+                }
+            }
+            if (col.children.length) {
+                grid.appendChild(col);
             }
             if (!first) {
                 wrapper.appendChild(h('hr'));
