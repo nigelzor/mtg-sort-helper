@@ -56,9 +56,7 @@
         }
         .card-grid {
             display: grid;
-            grid-auto-flow: column;
             grid-column-gap: 0.8em;
-            grid-row-gap: 0.2em;
             border-left: 0.5em solid transparent;
             padding-left: 0.5em;
         }
@@ -334,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function () {
         for (const chunk of chunked) {
             const grid = h('div', { class: `card-grid ${chunk.color}` }, []);
             grid.style.gridTemplateColumns = `repeat(${columns},1fr)`;
-            let col = h('div');
+            const col = h('div');
             const n = Math.ceil(chunk.cards.length / columns);
             for (const c of chunk.cards) {
                 const children = [];
@@ -346,13 +344,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     children.push(h('span', { class: `price ${c.rarity}` }, [`$${price(c)}`]));
                 }
                 col.appendChild(h('div', { class: 'card' }, children));
-                if (col.children.length >= n) {
-                    grid.appendChild(col);
-                    col = h('div');
-                }
             }
-            if (col.children.length) {
-                grid.appendChild(col);
+            grid.appendChild(col);
+            for (let i = 1; i < columns; i++) {
+                grid.appendChild(h('div'));
             }
             if (!first) {
                 wrapper.appendChild(h('hr'));
@@ -361,6 +356,95 @@ document.addEventListener('DOMContentLoaded', function () {
             first = false;
         }
         output.appendChild(h('div', { class: 'card-grid-wrapper' }, [wrapper]));
+        wrapper.querySelectorAll('.card-grid').forEach(balanceGrid);
+    }
+
+    function column_solver(columns, items, measure, margin) {
+        function sum(items) {
+            return items.reduce((a, b) => a + b, 0);
+        }
+
+        function range(n) {
+            const result = [];
+            for (let i = 0; i < n; i++) {
+                result.push(i);
+            }
+            return result;
+        }
+
+        const N = items.length;
+        const C = columns;
+        const E = 1e-5; // avoid 1324.5075 > 1324.5074999999997
+
+        const L = Array(C).fill(N);
+        L[0] = 0;
+        L[C] = N;
+
+        function height(l, c) {
+            const cc = items.slice(l[c], l[c + 1]);
+            let h = sum(cc.map(measure));
+            if (cc.length > 1) {
+                h += (cc.length - 1) * margin;
+            }
+            return h;
+        }
+
+        function V(l) {
+            const heights = range(C).map((c) => height(l, c));
+            const mean = sum(heights) / C;
+            return sum(heights.map((h) => Math.pow(mean - h, 2))) / C;
+        }
+
+        function pull(l, v, c) {
+            if (c < 1) return false; // can't pull into the first column
+            if (c >= C) return false; // can't pull past the last column
+            if (l[c] <= l[c - 1]) return false; // can't pull from an empty column
+
+            const new_l = l.map((x, i) => i === c ? x - 1 : x);
+            const new_v = V(new_l);
+            if ((v - new_v) > E) {
+                return [new_l, new_v];
+            }
+            const recursive = pull(new_l, v, c + 1);
+            if (recursive) {
+                return recursive;
+            }
+        }
+
+        let l = L;
+        let v = V(l);
+        let improved = true;
+        while (improved) {
+            improved = false;
+            for (let c = 0; c < C; c++) {
+                let next = pull(l, v, c);
+                if (next) {
+                    [l, v] = next;
+                    improved = true;
+                }
+            }
+        }
+
+        return range(C).map((c) => items.slice(l[c], l[c + 1]));
+    }
+
+    function balanceGrid(grid) {
+        const columns = Array.from(grid.children);
+        const items = Array.from(columns[0].children).map((e) => ({
+            height: e.offsetHeight,
+            element: e,
+        }));
+        if (items.length < 2) {
+            return;
+        }
+
+        const margin = Number(window.getComputedStyle(items[1].element).marginTop.replace(/px$/, ''));
+        const result = column_solver(columns.length, items, (x) => x.height, margin);
+
+        columns.forEach((col, i) => {
+            if (i === 0) return; // they're already in the right column
+            result[i].forEach((card) => col.appendChild(card.element));
+        });
     }
 
     function drawSets() {
