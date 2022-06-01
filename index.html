@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function price(c) {
-        if (c.finishes.includes('foil') && !c.finishes.includes('regular')) {
+        if (c.finishes.includes('foil') && !c.finishes.includes('nonfoil')) {
             return c.prices?.usd_foil;
         }
         return c.prices?.usd;
