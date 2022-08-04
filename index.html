@@ -160,32 +160,55 @@
                 display: none;
             }
         }
+        nav {
+            display: flex;
+        }
+        nav select {
+            min-width: 0;
+            flex: 1 1 auto;
+            margin: 0 0.5em;
+        }
+        #settings {
+            display: none;
+            margin-top: 0.5em;
+        }
     </style>
 </head>
 <body>
 <form id="filter">
-    <label>
-        <span>Set:</span>
-        <select id="set">
-            <option selected value="">(none selected)</option>
+    <nav>
+        <button id="back" type="button">🠔</button>
+        <select id="set" aria-label="Set">
+            <option selected value="">(no set selected)</option>
         </select>
-    </label>
-    <label class="no-mobile">
-        <span>Columns:</span>
-        <input id="columns" type="number" min="1" value="6" />
-    </label>
-    <label>
-        <span>Exclude Rares:</span>
-        <input id="rares" type="checkbox" checked />
-    </label>
-    <label>
-        <span>Exclude Bulk:</span>
-        <input id="bulk" type="checkbox" />
-    </label>
-    <label class="needs-mouse">
-        <span>Focus:</span>
-        <input id="focus" type="checkbox" />
-    </label>
+        <button id="toggle-settings" type="button">⚙</button>
+    </nav>
+    <div id="settings">
+        <label class="no-mobile">
+            <span>Columns:</span>
+            <input id="setting-columns" type="number" min="1" value="6" />
+        </label>
+        <label>
+            <span>Show Prices:</span>
+            <input id="setting-prices" type="checkbox" checked />
+        </label>
+        <label>
+            <span>Exclude Rares:</span>
+            <input id="setting-exclude-rares" type="checkbox" checked />
+        </label>
+        <label>
+            <span>Exclude Bulk:</span>
+            <input id="setting-exclude-bulk" type="checkbox" />
+        </label>
+        <label class="needs-mouse">
+            <span>Focus:</span>
+            <input id="setting-focus" type="checkbox" />
+        </label>
+        <label class="needs-mouse">
+            <span>Tooltips:</span>
+            <input id="setting-tooltips" type="checkbox" checked />
+        </label>
+    </div>
 </form>
 <hr/>
 <div id="output"></div>
@@ -247,16 +270,33 @@ document.addEventListener('DOMContentLoaded', function () {
     const hash = () => new URLSearchParams(`?${window.location.hash.substring(1)}`);
     const newHash = (k, v) => {
         const h = hash();
-        h.set(k, v);
+        if (v != null) {
+            h.set(k, v);
+        } else {
+            h.delete(k);
+        }
         return '#' + h.toString();
     };
 
+    function toggleVisibility(e) {
+        e.style.display = (e.style.display === 'block') ? 'none' : 'block';
+    }
+
+    document.getElementById('back').addEventListener('click', () => {
+        window.location.hash = newHash('set', undefined);
+    });
+    document.getElementById('toggle-settings').addEventListener('click', () => {
+        toggleVisibility(document.getElementById('settings'));
+    });
+
     const output = document.getElementById('output');
     const setInput = document.getElementById('set');
-    const raresInput = document.getElementById('rares');
-    const bulkInput = document.getElementById('bulk');
-    const columnsInput = document.getElementById('columns');
-    const focusInput = document.getElementById('focus');
+    const columnsInput = document.getElementById('setting-columns');
+    const pricesInput = document.getElementById('setting-prices');
+    const raresInput = document.getElementById('setting-exclude-rares');
+    const bulkInput = document.getElementById('setting-exclude-bulk');
+    const focusInput = document.getElementById('setting-focus');
+    const tooltipsInput = document.getElementById('setting-tooltips');
 
     let sets = null;
     let cards = [];
@@ -280,6 +320,7 @@ document.addEventListener('DOMContentLoaded', function () {
     setInput.addEventListener('change', (event) => {
         window.location.hash = newHash('set', event.currentTarget.value);
     });
+    pricesInput.addEventListener('change', redraw);
     raresInput.addEventListener('change', redraw);
     bulkInput.addEventListener('change', redraw);
     columnsInput.addEventListener('change', redraw);
@@ -308,6 +349,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     output.addEventListener('mouseover', (event) => {
+        if (!tooltipsInput.checked) {
+            return;
+        }
         const target = findTooltip(event);
         if (target) {
             clearTooltip();
@@ -404,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     'data-image-small': images?.small,
                     'data-image-normal': images?.normal,
                 }, [c.name])]));
-                if (price(c) > 1) {
+                if (pricesInput.checked && price(c) > 1) {
                     children.push(h('span', { class: `price ${c.rarity}` }, [`$${price(c)}`]));
                 }
                 col.appendChild(h('div', { class: 'card' }, children));
@@ -573,13 +617,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!sets) {
             return;
         }
-        const selectedSet = hash().get('set');
+        const selectedSetCode = hash().get('set');
+        const selectedSet = selectedSetCode && sets.find((s) => s.code === selectedSetCode);
         if (selectedSet) {
-            setInput.value = selectedSet;
-            if (!(cards[0] && cards[0].set === selectedSet)) {
-                const search = sets.find((s) => s.code === selectedSet).search_uri;
+            setInput.value = selectedSetCode;
+            if (!(cards[0] && cards[0].set === selectedSetCode)) {
                 loading();
-                fetchAll(search).then((result) => {
+                fetchAll(selectedSet.search_uri).then((result) => {
                     cards = result;
                     redraw();
                 });
