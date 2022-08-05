@@ -163,10 +163,12 @@
         nav {
             display: flex;
         }
+        nav * + * {
+            margin-left: 0.5em;
+        }
         nav select {
             min-width: 0;
             flex: 1 1 auto;
-            margin: 0 0.5em;
         }
         #settings {
             display: none;
@@ -181,6 +183,7 @@
         <select id="set" aria-label="Set">
             <option selected value="">(no set selected)</option>
         </select>
+        <button id="search" type="button">🔍</button>
         <button id="toggle-settings" type="button">⚙</button>
     </nav>
     <div id="settings">
@@ -253,28 +256,38 @@ function chunkify(cards) {
     }
 
     const chunks = [];
+    let ls;
     let lc;
     for (const card of cards) {
+        const s = card.set;
         const c = color(card);
-        if (lc == null || lc !== c) {
+        if (lc == null || lc !== c || ls == null || ls !== s) {
             chunks.push({ color: c, cards: [card] });
         } else {
             chunks[chunks.length - 1].cards.push(card);
         }
         lc = c;
+        ls = s;
     }
     return chunks;
 }
 
 document.addEventListener('DOMContentLoaded', function () {
     const hash = () => new URLSearchParams(`?${window.location.hash.substring(1)}`);
-    const newHash = (k, v) => {
+    const newHash = (o) => {
         const h = hash();
-        if (v != null) {
-            h.set(k, v);
-        } else {
-            h.delete(k);
+        // can't have both set and query in the same url
+        if (o.set || o.query) {
+            h.delete('set');
+            h.delete('query');
         }
+        Object.entries(o).forEach(([k, v]) => {
+            if (v != null) {
+                h.set(k, v);
+            } else {
+                h.delete(k);
+            }
+        });
         return '#' + h.toString();
     };
 
@@ -283,11 +296,17 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.getElementById('back').addEventListener('click', () => {
-        window.location.hash = newHash('set', undefined);
+        window.location.hash = newHash({ set: undefined, query: undefined });
     });
     document.getElementById('toggle-settings').addEventListener('click', () => {
         toggleVisibility(document.getElementById('settings'));
     });
+    document.getElementById('search').addEventListener('click', () => {
+        const query = window.prompt('Scryfall Query:');
+        if (query) {
+            window.location.hash = newHash({ query });
+        }
+    })
 
     const output = document.getElementById('output');
     const setInput = document.getElementById('set');
@@ -299,6 +318,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const tooltipsInput = document.getElementById('setting-tooltips');
 
     let sets = null;
+    let cardsUri = null;
     let cards = [];
 
     loading();
@@ -318,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.onhashchange = redraw;
 
     setInput.addEventListener('change', (event) => {
-        window.location.hash = newHash('set', event.currentTarget.value);
+        window.location.hash = newHash({ 'set': event.currentTarget.value });
     });
     pricesInput.addEventListener('change', redraw);
     raresInput.addEventListener('change', redraw);
@@ -600,10 +620,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (set.icon_svg_uri) {
                 row.push(h('img', { src: set.icon_svg_uri }));
             }
-            row.push(h('a', { href: newHash('set', set.code), class: set.set_type }, [set.name]));
+            row.push(h('a', { href: newHash({ set: set.code }), class: set.set_type }, [set.name]));
             for (const child of children) {
                 if (child.parent_set_code === set.code) {
-                    row.push(h('a', { href: newHash('set', child.code), class: 'child' }, [shortname(set, child.name)]))
+                    row.push(h('a', { href: newHash({ set: child.code }), class: 'child' }, [shortname(set, child.name)]))
                 }
             }
             grid.appendChild(h('div', { class: 'set' }, row));
@@ -617,19 +637,33 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!sets) {
             return;
         }
+        const selectedQuery = hash().get('query');
         const selectedSetCode = hash().get('set');
         const selectedSet = selectedSetCode && sets.find((s) => s.code === selectedSetCode);
-        if (selectedSet) {
-            setInput.value = selectedSetCode;
-            if (!(cards[0] && cards[0].set === selectedSetCode)) {
+        function fetchAndDrawCards(uri) {
+            if (cardsUri !== uri) {
+                cardsUri = uri;
+                cards = null;
                 loading();
-                fetchAll(selectedSet.search_uri).then((result) => {
-                    cards = result;
-                    redraw();
+                fetchAll(uri).then((result) => {
+                    if (cardsUri === uri) {
+                        cards = result;
+                        redraw();
+                    }
                 });
-            } else {
+            } else if (cards) {
                 drawCards();
             }
+        }
+        if (selectedQuery) {
+            setInput.value = '';
+            const params = new URLSearchParams('include_extras=true&include_variations=true&order=set&unique=prints');
+            params.set('q', selectedQuery);
+            const uri = 'https://api.scryfall.com/cards/search?' + params;
+            fetchAndDrawCards(uri);
+        } else if (selectedSet) {
+            setInput.value = selectedSetCode;
+            fetchAndDrawCards(selectedSet.search_uri);
         } else {
             setInput.value = '';
             drawSets();
