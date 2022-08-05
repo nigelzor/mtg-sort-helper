@@ -240,6 +240,12 @@ function fetchAll(url) {
     });
 }
 
+function median(ns) {
+    const m = Math.floor(ns.length / 2);
+    const n = Math.ceil(ns.length / 2);
+    return ns[m] / 2 + ns[n] / 2;
+}
+
 function chunkify(cards) {
     function color(card) {
         const colors = card.colors || card.card_faces?.[0].colors;
@@ -268,6 +274,10 @@ function chunkify(cards) {
         }
         lc = c;
         ls = s;
+    }
+    // don't make a million chunks if the set isn't sorted
+    if (chunks.length > 1 && median(chunks.map((c) => c.cards.length)) < 3) {
+        return [{ color: 'unknown', cards }];
     }
     return chunks;
 }
