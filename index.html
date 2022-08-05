@@ -444,6 +444,11 @@ document.addEventListener('DOMContentLoaded', function () {
         output.textContent = 'Loading...'
     }
 
+    function loadingFailed() {
+        clear();
+        output.textContent = '💥 Error!'
+    }
+
     function compare(a, b) {
         if (a > b) return 1;
         if (b > a) return -1;
@@ -673,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 loading();
                 fetchAll(uri).then((result) => {
                     if (cardsUri === uri) {
-                        cards = result;
+                        cards = result || [];
                         redraw();
                     }
                 });
