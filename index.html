@@ -247,7 +247,10 @@ function median(ns) {
 }
 
 function chunkify(cards) {
-    function color(card) {
+    function cardSet(card) { return card.set; }
+    function cardInBoosters(card) { return card.booster; }
+    function cardIsPromo(card) { return card.promo; }
+    function cardColor(card) {
         const colors = card.colors || card.card_faces?.[0].colors;
         if (colors?.length > 1) {
             return 'multi';
@@ -261,25 +264,39 @@ function chunkify(cards) {
         return 'unknown';
     }
 
-    const chunks = [];
-    let ls;
-    let lc;
-    for (const card of cards) {
-        const s = card.set;
-        const c = color(card);
-        if (lc == null || lc !== c || ls == null || ls !== s) {
-            chunks.push({ color: c, cards: [card] });
-        } else {
-            chunks[chunks.length - 1].cards.push(card);
+    const chunkFactory = {
+        make: (category, items) => items,
+        items: (chunk) => chunk,
+    };
+    const colorChunkFactory = {
+        make: (category, items) => ({ color: category, cards: items }),
+        items: (chunk) => chunk.cards,
+    };
+
+    function chunkBy(items, criteria, factory = chunkFactory) {
+        const chunks = [];
+        let lc;
+        for (const i of items) {
+            const c = criteria(i);
+            if (lc == null || lc !== c) {
+                chunks.push(factory.make(c, [i]));
+            } else {
+                factory.items(chunks[chunks.length - 1]).push(i);
+            }
+            lc = c;
         }
-        lc = c;
-        ls = s;
+        // console.log(criteria, 'made', chunks.length, 'chunks');
+        if (chunks.length > 1 && median(chunks.map((c) => factory.items(c).length)) < 3) {
+            return [factory.make(undefined, items)];
+        }
+        return chunks;
     }
-    // don't make a million chunks if the set isn't sorted
-    if (chunks.length > 1 && median(chunks.map((c) => c.cards.length)) < 3) {
-        return [{ color: 'unknown', cards }];
-    }
-    return chunks;
+
+    return [cards]
+        .flatMap((items) => chunkBy(items, cardSet))
+        .flatMap((items) => chunkBy(items, cardInBoosters))
+        // .flatMap((items) => chunkBy(items, cardIsPromo))
+        .flatMap((items) => chunkBy(items, cardColor, colorChunkFactory));
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -442,14 +459,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function drawCards() {
         clear();
-        let selected = cards;
-        selected.sort((a, b) => -compare(a.booster, b.booster))
+        let selected = cards.filter((c) => !c.digital); // exclude alchemy cards
         if (raresInput.checked) {
             selected = selected.filter((c) => c.rarity !== "rare" && c.rarity !== "mythic");
         }
         if (bulkInput.checked) {
             selected = selected.filter((c) => price(c) > 1);
         }
+        selected.sort((a, b) => -compare(a.booster, b.booster)) // 9th edition sorts S cards in with normal cards
         const chunked = chunkify(selected);
         let first = true;
         const wrapper = h('div');
@@ -464,7 +481,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const grid = h('div', { class: `card-grid ${chunk.color}` }, []);
             grid.style.gridTemplateColumns = `repeat(${columns},1fr)`;
             const col = h('div');
-            const n = Math.ceil(chunk.cards.length / columns);
             for (const c of chunk.cards) {
                 const children = [];
                 if (c.collector_number) {
