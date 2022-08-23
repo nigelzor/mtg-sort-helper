@@ -40,11 +40,18 @@
             grid-column: 2;
             justify-self: left;
         }
-        .set-grid a.child {
+        .set-grid .child {
             grid-column: 3;
         }
+        /* two columns on mobile */
         @media screen and (max-width: 600px) {
-            .set-grid a.child {
+            .set-grid {
+                grid-template-columns: 1em auto;
+            }
+            .set-grid .year {
+                grid-column: 1 / span 2;
+            }
+            .set-grid .child {
                 grid-column: 2;
                 font-size: smaller;
             }
