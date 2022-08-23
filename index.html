@@ -674,6 +674,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!sets) {
             return;
         }
+        clearTooltip();
         const selectedQuery = hash().get('query');
         const selectedSetCode = hash().get('set');
         const selectedSet = selectedSetCode && sets.find((s) => s.code === selectedSetCode);
