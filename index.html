@@ -160,7 +160,7 @@
         }
         @media screen and (max-width: 600px) {
             .no-mobile {
-                display: none;
+                display: none !important;
             }
             .card-grid-wrapper > div {
                 display: initial;
@@ -186,9 +186,15 @@
             min-width: 0;
             flex: 1 1 auto;
         }
-        #settings {
-            display: none;
-            margin-top: 0.5em;
+        #settings > * {
+            display: flex;
+        }
+        #settings label span {
+            flex-grow: 1;
+        }
+        #settings button {
+            display: block;
+            margin: 0.5em auto 0
         }
     </style>
 </head>
@@ -202,7 +208,7 @@
         <button id="search" type="button">🔍</button>
         <button id="toggle-settings" type="button">⚙</button>
     </nav>
-    <div id="settings">
+    <dialog id="settings">
         <label class="no-mobile">
             <span>Columns:</span>
             <input id="setting-columns" type="number" min="1" value="6" />
@@ -227,7 +233,8 @@
             <span>Tooltips:</span>
             <input id="setting-tooltips" type="checkbox" checked />
         </label>
-    </div>
+        <button type="button">Done</button>
+    </dialog>
 </form>
 <hr/>
 <div id="output"></div>
@@ -334,15 +341,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return '#' + h.toString();
     };
 
-    function toggleVisibility(e) {
-        e.style.display = (e.style.display === 'block') ? 'none' : 'block';
-    }
-
     document.getElementById('back').addEventListener('click', () => {
         window.location.hash = newHash({ set: undefined, query: undefined });
     });
     document.getElementById('toggle-settings').addEventListener('click', () => {
-        toggleVisibility(document.getElementById('settings'));
+        document.getElementById('settings').showModal();
+    });
+    document.querySelector('#settings button').addEventListener('click', () => {
+        document.getElementById('settings').close();
     });
     document.getElementById('search').addEventListener('click', () => {
         const query = window.prompt('Scryfall Query:');
